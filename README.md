@@ -11,7 +11,7 @@
 - Отвечает на вопросы по содержанию учебных планов.
 - Дает рекомендации по выборным дисциплинам с учетом бэкграунда пользователя.
 - Работает только с двумя указанными программами.
-- Использует **RAG** (retrieval-augmented generation) на базе Qdrant и эмбеддингов **Qwen3-Embedding-0.6B**.
+- Использует **RAG** (retrieval-augmented generation) на базе Markdown файлов содержащих учебные файлы.
 - Генерация ответов — на **Qwen3-1.7B**.
 
 ---
@@ -19,18 +19,15 @@
 ## Архитектура
 
 ### Сервисы
-- **qdrant** — векторная база для хранения и поиска чанков (дисциплин).
-- **ingestor** — автоматическое скачивание PDF учебных планов, парсинг по дисциплинам, создание эмбеддингов и загрузка в Qdrant.
+- **ingestor** — автоматическое скачивание PDF учебных планов и конвертация в Markdown при помощи модели Nanonets-OCR-s.
 - **api** — FastAPI сервис с RAG-пайплайном и LLM для генерации ответов.
 - **bot** — Telegram-бот (aiogram), который общается с пользователем и отправляет запросы в API.
 
 ### Технологии
 - Python 3.11
-- [Qwen/Qwen3-Embedding-0.6B](https://huggingface.co/Qwen/Qwen3-Embedding-0.6B) — для векторизации дисциплин.
 - [Qwen/Qwen3-1.7B](https://huggingface.co/Qwen/Qwen3-1.7B) — для генерации ответов.
-- [Qdrant](https://qdrant.tech/) — векторное хранилище.
+- [nanonets/Nanonets-OCR-s](https://huggingface.co/nanonets/Nanonets-OCR-s) - для конвертации PDF в Markdown
 - [Playwright](https://playwright.dev/python/) — для автоматического скачивания PDF с сайтов.
-- [pdfplumber](https://github.com/jsvine/pdfplumber) — для извлечения текста из PDF.
 - Docker Compose — для развёртывания всех компонентов.
 
 ---
@@ -39,8 +36,8 @@
 
 ### 1. Клонировать репозиторий и подготовить окружение
 ```bash
-git clone <repo_url>
-cd itmo-mai-chatbot
+git clone https://github.com/WiillyWonka/AIHub_QA_assistant.git
+cd AIHub_QA_assistant
 cp .env.example .env
 ````
 
@@ -55,7 +52,7 @@ docker compose up --build
 При первом запуске:
 
 * **ingestor** с помощью Playwright скачает учебные планы в PDF с сайтов программ.
-* PDF будут распарсены по дисциплинам и загружены в Qdrant с эмбеддингами.
+* PDF будут сконвертированы в Markdown и подготовлены для RAG.
 
 ---
 
@@ -94,6 +91,6 @@ docker compose up --build
 
 * Бот отвечает **только** по двум указанным магистратурам.
 * Если информации нет в учебных планах, бот предложит обратиться к менеджеру программы.
-* Требуется GPU для комфортной работы Qwen3-1.7B (CPU тоже возможен, но медленно).
+* Требуется GPU для комфортной работы Qwen3-1.7B и Nanonets-OCR-s (CPU тоже возможен, но медленно).
 
 ---

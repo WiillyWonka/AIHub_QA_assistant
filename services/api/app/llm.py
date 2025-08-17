@@ -7,8 +7,8 @@ SYS = """Ты — помощник-навигатор для абитуриен�
 Если вопрос не про них — вежливо откажись и предложи обсудить только эти программы.
 
 Инструкции:
-- Используй предоставленный контекст (RAG). Если ответа нет в контексте — скажи, что в учебных планах нет прямого ответа (предложи связаться с менеджером программы со страницы), не выдумывай.
-- Отвечай кратко и структурировано. Русский язык.
+- Используй предоставленный контекст. Если ответа нет в контексте — скажи, что в учебных планах нет прямого ответа (предложи связаться с менеджером программы со страницы), не выдумывай.
+- Отвечай кратко и структурировано. Всё общение ведётся на русском языке.
 - При рекомендациях по элективам учитывай бэкграунд, но предлагай из списков этих программ.
 """
 
@@ -21,25 +21,40 @@ def load_model(model_name: str):
     )
     return tok, model
 
-def generate_answer(tok, model, question: str, ctx: list[str], background: str | None):
-    ctx_text = "\n".join(ctx) if ctx else "Нет релевантных фрагментов."
+def generate_answer(tokenizer, model, question: str, ctx: str, background: str | None = None):
     bkg = f"Бэкграунд абитуриента: {background}" if background else ""
-    user = textwrap.dedent(f"""
-    Вопрос: {question}
-    {bkg}
-    Контекст:
-    {ctx_text}
-    """).strip()
+    messages = [
+        {"role": "system", "content": SYS},
+        {"role": "user", "content": textwrap.dedent(f"""
+        Вопрос: {question}
+        {bkg}
+        Контекст:
+        {ctx}
+        """).strip()}
+    ]
 
-    messages = [{"role": "system", "content": SYS}, {"role":"user","content": user}]
-    text = tok.apply_chat_template(messages, tokenize=False, add_generation_prompt=True, enable_thinking=True)
-    inputs = tok([text], return_tensors="pt").to(model.device)
-    gen = model.generate(**inputs, max_new_tokens=800)
-    out_ids = gen[0][len(inputs.input_ids[0]):].tolist()
-    # отделим hidden thinking, если есть
+    text = tokenizer.apply_chat_template(
+        messages,
+        tokenize=False,
+        add_generation_prompt=True,
+        enable_thinking=True
+    )
+    model_inputs = tokenizer([text], return_tensors="pt").to(model.device)
+
+    # conduct text completion
+    generated_ids = model.generate(
+        **model_inputs,
+        max_new_tokens=32768
+    )
+    output_ids = generated_ids[0][len(model_inputs.input_ids[0]):].tolist() 
+    # parsing thinking content
     try:
-        idx = len(out_ids) - out_ids[::-1].index(151668)  # </think>
+        # rindex finding 151668 (</think>)
+        index = len(output_ids) - output_ids[::-1].index(151668)
     except ValueError:
-        idx = 0
-    content = tok.decode(out_ids[idx:], skip_special_tokens=True).strip()
+        index = 0
+
+    thinking_content = tokenizer.decode(output_ids[:index], skip_special_tokens=True).strip("\n")
+    content = tokenizer.decode(output_ids[index:], skip_special_tokens=True).strip("\n")
+
     return content

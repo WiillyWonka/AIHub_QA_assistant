@@ -1,7 +1,6 @@
-playwright==1.46.0
-pdfplumber==0.11.4
-sentence-transformers>=2.7.0
-transformers>=4.51.0
-qdrant-client==1.9.2
-pydantic==2.8.2
+playwright
+pdf2image
+transformers
+accelerate
 torch
+torchvision
